@@ -103,12 +103,16 @@ public class SubscriptionSender {
             this.telegramBot = new TelegramBot(telegramBotToken);
             this.telegramBot.setUpdatesListener(updates -> {
                 updates.forEach(update -> {
-                    var chatId = update.message().chat().id();
-                    var message = update.message().text();
-                    if (message != null) {
-                        log.info("Telegram group {}, message: {}", chatId, message);
-                        var responseStr = String.format("Your chat id: %s\nOriginal message: %s", chatId, message);
-                        telegramBot.execute(new SendMessage(update.message().chat().id(), responseStr));
+                    var message = update.message();
+                    if (message == null) {
+                        return;
+                    }
+                    var chatId = message.chat().id();
+                    var text = message.text();
+                    if (text != null) {
+                        log.info("Telegram group {}, message: {}", chatId, text);
+                        var responseStr = String.format("Your chat id: %s\nOriginal message: %s", chatId, text);
+                        telegramBot.execute(new SendMessage(chatId, responseStr));
                     }
                 });
                 return UpdatesListener.CONFIRMED_UPDATES_ALL;
