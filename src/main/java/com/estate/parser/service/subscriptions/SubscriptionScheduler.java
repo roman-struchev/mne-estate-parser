@@ -59,17 +59,17 @@ public class SubscriptionScheduler {
                     .filter(e -> !e.getValue().isEmpty())
                     .map(e -> {
                         var index = new AtomicInteger(1);
-                        var groupTitle = e.getKey();
+                        var groupTitle = e.getKey().getDesc();
                         var groupBody = e.getValue().stream()
                                 .map(a -> {
                                     var location = StringUtils.defaultIfBlank(a.getLocation(), "?");
                                     var size = StringUtils.defaultIfBlank(a.getSize(), "?");
                                     var price = StringUtils.defaultIfBlank(a.getPrice(), "?");
-                                    return String.format("%s. %s, %s, %s, %se, %s", index.getAndIncrement(),
-                                            a.getCity(), location, size, price, a.getSourceLink());
+                                    return String.format("%s. %s, %s, %s, %se, [%s](%s)", index.getAndIncrement(),
+                                            a.getCity(), location, size, price, a.getSourceCode(), a.getSourceLink());
                                 })
                                 .collect(Collectors.joining("\n"));
-                        return String.format("%s\n%s", groupTitle, groupBody);
+                        return "*%s*\n%s".formatted(groupTitle, groupBody);
                     }).collect(Collectors.joining("\n\n"));
             var header = String.format("New ads since %s", dateFrom.format(DateTimeFormatter.ISO_DATE));
             subscriptionSender.sendToTelegram(s.getTelegramChatIds(), header, messageBody);

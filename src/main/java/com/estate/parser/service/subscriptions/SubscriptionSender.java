@@ -44,11 +44,11 @@ public class SubscriptionSender {
 
     private void sendToTelegram(String telegramBotChatId, String header, String content) {
         try {
-            if (this.telegramBot == null || StringUtils.isNotEmpty(telegramBotChatId)) {
+            if (this.telegramBot == null || StringUtils.isEmpty(telegramBotChatId)) {
                 log.info("Skip sending to telegram for {}", telegramBotChatId);
                 return;
             }
-            var message = new SendMessage(telegramBotChatId, header + "\n" + content);
+            var message = new SendMessage(telegramBotChatId, "*%s*\n\n%s".formatted(header, content));
             message.parseMode(ParseMode.Markdown);
             message.disableWebPagePreview(true);
             this.telegramBot.execute(message);
