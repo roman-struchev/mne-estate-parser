@@ -35,7 +35,7 @@ public class SubscriptionScheduler {
 
         var dateFrom = LocalDate.now().minusDays(1);
         var updatedAds = adRepository.findAllByLastModifiedGreaterThanEqual(dateFrom.atStartOfDay(),
-                Sort.by("type", "location", "livingArea", "price"));
+                Sort.by("type", "location", "size", "price"));
 
         subscriptionsConfiguration.getSubscriptions().forEach(s -> {
             var adsToSend = updatedAds.stream()
@@ -47,8 +47,8 @@ public class SubscriptionScheduler {
                     .filter(a -> s.getPriceLessThen() == null || compareUnits(s.getPriceMoreThen(), a.getPrice()) <= 0)
                     .filter(a -> s.getBedroomsLessThen() == null || compareUnits(s.getBedroomsLessThen(), a.getBedrooms()) >= 0)
                     .filter(a -> s.getBedroomsMoreThen() == null || compareUnits(s.getBedroomsMoreThen(), a.getBedrooms()) <= 0)
-                    .filter(a -> s.getLivingAreaLessThen() == null || compareUnits(s.getLivingAreaLessThen(), a.getSize()) >= 0)
-                    .filter(a -> s.getLivingAreaMoreThen() == null || compareUnits(s.getLivingAreaMoreThen(), a.getSize()) <= 0)
+                    .filter(a -> s.getSizeLessThen() == null || compareUnits(s.getSizeLessThen(), a.getSize()) >= 0)
+                    .filter(a -> s.getSizeMoreThen() == null || compareUnits(s.getSizeMoreThen(), a.getSize()) <= 0)
                     .toList();
             if (CollectionUtils.isEmpty(adsToSend)) {
                 return;
@@ -63,10 +63,10 @@ public class SubscriptionScheduler {
                         var groupBody = e.getValue().stream()
                                 .map(a -> {
                                     var location = StringUtils.defaultIfBlank(a.getLocation(), "?");
-                                    var livingArea = StringUtils.defaultIfBlank(a.getSize(), "?");
+                                    var size = StringUtils.defaultIfBlank(a.getSize(), "?");
                                     var price = StringUtils.defaultIfBlank(a.getPrice(), "?");
                                     return String.format("%s. %s, %s, %s, %se, %s", index.getAndIncrement(),
-                                            a.getCity(), location, livingArea, price, a.getSourceLink());
+                                            a.getCity(), location, size, price, a.getSourceLink());
                                 })
                                 .collect(Collectors.joining("\n"));
                         return String.format("%s\n%s", groupTitle, groupBody);

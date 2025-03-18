@@ -23,7 +23,7 @@ public class SubscriptionsConfiguration {
         private Integer priceMoreThen;
         private Integer bedroomsLessThen;
         private Integer bedroomsMoreThen;
-        private Integer livingAreaLessThen;
-        private Integer livingAreaMoreThen;
+        private Integer sizeLessThen;
+        private Integer sizeMoreThen;
     }
 }
