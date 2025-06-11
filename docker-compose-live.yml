@@ -6,6 +6,7 @@ services:
     container_name: estate
     network_mode: host
     environment:
+      - JAVA_OPTS=-XX:MaxRAMPercentage=60.0
       - server.port=10001
       - spring.datasource.driverClassName=org.postgresql.Driver
       - spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/estate
