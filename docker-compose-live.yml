@@ -6,7 +6,7 @@ services:
     container_name: estate
     network_mode: host
     environment:
-      - SERVER_PORT=10001
+      - server.port=10001
       - spring.datasource.driverClassName=org.postgresql.Driver
       - spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/estate
       - spring.datasource.username=${POSTGRES_USER}
@@ -16,7 +16,6 @@ services:
       - app.smtp.bot.port=${SMTP_PORT}
       - app.smtp.bot.login=${SMTP_LOGIN}
       - app.smtp.bot.password=${SMTP_PASSWORD}
-      - JAVA_OPTS=-XX:MaxRAMPercentage=60.0
     restart: always
     deploy:
       resources:
