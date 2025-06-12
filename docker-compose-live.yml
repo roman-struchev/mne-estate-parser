@@ -16,6 +16,7 @@ services:
       - app.smtp.bot.port=${SMTP_PORT}
       - app.smtp.bot.login=${SMTP_LOGIN}
       - app.smtp.bot.password=${SMTP_PASSWORD}
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=60.0
     restart: always
     deploy:
       resources:
