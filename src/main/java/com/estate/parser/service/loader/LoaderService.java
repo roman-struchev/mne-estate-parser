@@ -32,7 +32,7 @@ public class LoaderService {
     private void removeDeprecated() {
         log.info("Start scheduler to  remove deprecated");
         var deprecatedDate = OffsetDateTime.now().minusMonths(2);
-        var toRemoveDate = LocalDateTime.now().minusMonths(9);
+        var toRemoveDate = LocalDateTime.now().minusMonths(18);
         var deprecatedAdEntities = adRepository.findAll().stream()
                 .filter(s -> s.getUpdated() == null || s.getUpdated().isBefore(deprecatedDate))
                 .filter(s -> {
