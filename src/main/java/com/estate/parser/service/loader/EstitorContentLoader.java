@@ -69,7 +69,7 @@ public class EstitorContentLoader implements IContentLoader {
             try {
                 var url = urlWithAds + (curPage > 1 ? "/page-" + curPage : "");
                 var pageDoc = Jsoup.connect(url).get();
-                var adElements = pageDoc.select("div.items-start > div > a");
+                var adElements = pageDoc.select(".estate-card > div > a");
                 if (adElements.isEmpty() || !url.equals(pageDoc.location())) {
                     log.info("Last page {} of {}", curPage, url);
                     curPage = -1;
@@ -88,63 +88,50 @@ public class EstitorContentLoader implements IContentLoader {
         return links;
     }
 
-    /**
-     * "Reference ID:" -> "4052"
-     * "Published:" -> "23.02.2021"
-     * "Updated:" -> "25.11.2024"
-     * "Real Estate Ad published by:" -> "Fresh Estate"
-     * "Neighborhood:" -> "Zabjelo"
-     * "Price:" -> "180,000€"
-     * "Square footage:" -> "87m²"
-     * "Reference ID" -> "4052"
-     * "External ID" -> "22243"
-     * "Number of rooms" -> "3"
-     * "Number of bathrooms" -> "2"
-     * "Type:" -> "Three Bedroom Apartment for Sale"
-     * "City:" -> "Podgorica"
-     *
-     * @param url
-     * @param repeats
-     * @return
-     */
     @SneakyThrows
     private Map<String, String> loadAdAttributes(String url, int repeats) {
         if (repeats < 0) {
             return null;
         }
+        String value;
 
         try {
             log.info("Loading ad {}", url);
-
             var doc = Jsoup.connect(url).get();
             var attributesMap = new LinkedHashMap<String, String>();
+            //"Published:" -> "23.02.2021"
+            value = Objects.requireNonNull(doc.select("span:matchesOwn(^Published$)").first())
+                    .parent().parent().select("span").last().text();
+            attributesMap.put("Published", value);
+            //"Updated:" -> "25.11.2024"
+            value = Objects.requireNonNull(doc.select("span:matchesOwn(^Updated$)").first())
+                    .parent().parent().select("span").last().text();
+            attributesMap.put("Updated", value);
+            //"Neighborhood:" -> "Zabjelo"
+            value = doc.select("h3:contains(Location)").first()
+                    .parent().select("p.text-base.font-semibold").first().text();
+            attributesMap.put("Neighborhood", value);
+            //"Price:" -> "180,000€"
+            value = doc.select("h3:contains(Price)").first()
+                    .parent().selectFirst("p.font-bold").text().replaceAll("\\s+", "");
+            attributesMap.put("Price", value);
+            //"Area:" -> "87m²"
+            value = doc.select("span:matchesOwn(^Area$)").first()
+                    .parent().parent().selectFirst("p.font-semibold").text();
+            attributesMap.put("Area", value);
+            //"Rooms" -> "3"
+            value = doc.select("span:matchesOwn(^Rooms$)").first()
+                    .parent().parent().selectFirst("p.font-semibold").text();
+            attributesMap.put("Rooms", value);
+            //"City:" -> "Podgorica"
+            value = doc.select("h3:matchesOwn(^Location$)").first()
+                    .parent().select("p.text-sm").first().text().replaceAll(".*,\\s*", "");
+            attributesMap.put("City", value);
 
-            for (var parentElement : doc.select("li")) {
-                var spans = parentElement.select("span");
-                if (spans.size() == 2) {
-                    attributesMap.put(StringUtils.strip(spans.get(0).text(), ":"), spans.get(1).text());
-                }
-            }
-            for (var parentElement : doc.select("h2 + div > div")) {
-                var spans = parentElement.select("span");
-                var span = switch (spans.size()) {
-                    case 1 -> spans.getFirst();
-                    case 2 -> spans.get(1);
-                    default -> null;
-                };
-                if (span != null) {
-                    var parts = span.text().split(":");
-                    if (parts.length == 2) {
-                        attributesMap.put(StringUtils.strip(parts[0].trim(), ":"), parts[1].trim());
-                    }
-                }
-
-            }
             var h1Text = doc.select("h1").first().text();
             var parts = h1Text.split(",");
 
-            attributesMap.put("Type", parts[0].trim());
-            attributesMap.put("City", parts[parts.length - 1].trim());
+            attributesMap.put("Type", parts[0].trim() + " " + parts[1].trim());
             return attributesMap;
         } catch (Exception e) {
             log.error("Can't load ad {}", url, e);
@@ -188,7 +175,7 @@ public class EstitorContentLoader implements IContentLoader {
                 }
             };
 
-            if(lastModified != null && lastModified.isBefore(LocalDateTime.now().minusMonths(18).toLocalDate())){
+            if (lastModified != null && lastModified.isBefore(LocalDateTime.now().minusMonths(18).toLocalDate())) {
                 log.info("Stun {} is deprecated", id);
                 return null;
             }
@@ -202,8 +189,8 @@ public class EstitorContentLoader implements IContentLoader {
             adEntity.setCity(attributesMap.get("City"));
             adEntity.setLocation(attributesMap.get("Neighborhood"));
             adEntity.setPrice(attributesMap.get("Price") != null ? attributesMap.get("Price").replaceAll("[^\\d]", "") : null);
-            adEntity.setBedrooms(attributesMap.get("Number of rooms"));
-            adEntity.setSize(attributesMap.get("Square footage") != null ? attributesMap.get("Square footage").replaceAll("[^\\d]", "") : null);
+            adEntity.setBedrooms(attributesMap.get("Rooms"));
+            adEntity.setSize(attributesMap.get("Area") != null ? attributesMap.get("Area").replaceAll("[^\\d]", "") : null);
             adEntity.setLastModified(lastModified == null ? null : lastModified.atStartOfDay());
             adEntity.setType(convertType(attributesMap.get("Type")));
             adRepository.save(adEntity);
@@ -217,32 +204,32 @@ public class EstitorContentLoader implements IContentLoader {
     }
 
     private AdEntity.Type convertType(String type) {
-        if (type.contains("Sale")) {
-            if (type.contains("Office")) {
+        if (StringUtils.containsIgnoreCase(type, "Sale")) {
+            if (StringUtils.containsIgnoreCase(type, "Office")) {
                 return COMMERCIAL_FOR_SALE;
             }
-            if (type.contains("House")) {
+            if (StringUtils.containsIgnoreCase(type, "House")) {
                 return HOUSE_FOR_SALE;
             }
-            if (type.contains("Apartment") || type.contains("Studio")) {
+            if (StringUtils.containsIgnoreCase(type, "Apartment") || StringUtils.containsIgnoreCase(type, "Studio")) {
                 return APARTMENT_FOR_SALE;
             }
-            if (type.contains("Land")) {
+            if (StringUtils.containsIgnoreCase(type, "Land")) {
                 return LAND_FOR_SALE;
             }
         }
 
-        if (type.contains("Rent")) {
-            if (type.contains("Office")) {
+        if (StringUtils.containsIgnoreCase(type, "Rent")) {
+            if (StringUtils.containsIgnoreCase(type, "Office")) {
                 return COMMERCIAL_LONG_TERM_RENTAL;
             }
-            if (type.contains("Apartment") || type.contains("Studio")) {
+            if (StringUtils.containsIgnoreCase(type, "Apartment") || StringUtils.containsIgnoreCase(type, "Studio")) {
                 return APARTMENT_LONG_TERM_RENTAL;
             }
-            if (type.contains("House")) {
+            if (StringUtils.containsIgnoreCase(type, "House")) {
                 return HOUSE_LONG_TERM_RENTAL;
             }
-            if (type.contains("Land")) {
+            if (StringUtils.containsIgnoreCase(type, "Land")) {
                 return LAND_LONG_TERM_RENTAL;
             }
 
