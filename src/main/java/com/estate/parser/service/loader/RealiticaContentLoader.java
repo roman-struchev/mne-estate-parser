@@ -70,7 +70,7 @@ public class RealiticaContentLoader implements IContentLoader {
 
         if (city != null) {
             searches.put("All-Rental", "https://www.realitica.com/index.php?for=DuziNajam&lng=en&opa=" + city);
-            searches.put("All-Sale", "https://www.realitica.com/index.php?for=Prodaja&lng=en&opa=" + city);
+//            searches.put("All-Sale", "https://www.realitica.com/index.php?for=Prodaja&lng=en&opa=" + city);
         }
         for (var element : areasElements) {
             String current = element.text();
@@ -85,8 +85,8 @@ public class RealiticaContentLoader implements IContentLoader {
                 Map<String, Object> searchesInternal = loadSearchesByCitiesAndAreas(linkToChild, city == null ? current : city);
                 searches.put(current, searchesInternal);
             } else {
-                searches.put(current, "https://www.realitica.com/index.php?for=DuziNajam&lng=en&opa=" + city + "&cty=" + current);
-                searches.put(current, "https://www.realitica.com/index.php?for=Prodaja&lng=en&opa=" + city + "&cty=" + current);
+                searches.put(current + "-Rental", "https://www.realitica.com/index.php?for=DuziNajam&lng=en&opa=" + city + "&cty=" + current);
+//                searches.put(current + "-Sale", "https://www.realitica.com/index.php?for=Prodaja&lng=en&opa=" + city + "&cty=" + current);
             }
         }
         return searches;
