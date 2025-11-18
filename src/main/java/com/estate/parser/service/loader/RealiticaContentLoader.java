@@ -7,6 +7,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.parser.Tag;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,7 +51,7 @@ public class RealiticaContentLoader implements IContentLoader {
 
     @Override
     public boolean isCanBeDeleted(String sourceId) {
-        var attributesMap = loadAdAttributes(sourceId, 1);
+        var attributesMap = loadAdAttributes(sourceId);
         return attributesMap == null || attributesMap.isEmpty();
     }
 
@@ -64,7 +65,7 @@ public class RealiticaContentLoader implements IContentLoader {
     @SneakyThrows
     private Map<String, Object> loadSearchesByCitiesAndAreas(String rootUrl, String city) {
         var searches = new LinkedHashMap<String, Object>();
-        var pageDoc = Jsoup.connect(rootUrl).get();
+        var pageDoc = jsonpGetWrapper(rootUrl, 3);
         var areasElements = pageDoc.select("#search_col2 span.geosel");
 
         if (city != null) {
@@ -125,7 +126,7 @@ public class RealiticaContentLoader implements IContentLoader {
         while (curPage >= 0) {
             try {
                 var url = urlWithAds + "&cur_page=" + curPage;
-                var pageDoc = Jsoup.connect(url).get();
+                var pageDoc = jsonpGetWrapper(url, 3);
                 var adElements = pageDoc.select("div.thumb_div > a");
                 if (adElements.isEmpty()) {
                     log.info("Last page {} of {}", curPage + 1, urlWithAds);
@@ -144,7 +145,6 @@ public class RealiticaContentLoader implements IContentLoader {
                 ids.addAll(listIds);
             } catch (Exception e) {
                 log.error("Can't load page with ad, goes to sleep 1s: " + urlWithAds, e);
-                Thread.sleep(1000);
             }
         }
         return ids;
@@ -174,15 +174,11 @@ public class RealiticaContentLoader implements IContentLoader {
      * @throws IOException
      */
     @SneakyThrows
-    private Map<String, String> loadAdAttributes(String id, int repeats) {
-        if (repeats < 0) {
-            return null;
-        }
-
+    private Map<String, String> loadAdAttributes(String id) {
         try {
             log.info("Loading ad {}", id);
 
-            var doc = Jsoup.connect(baseUrl + "/en/listing/" + id).get();
+            var doc = jsonpGetWrapper(baseUrl + "/en/listing/" + id, 3);
             var attributesMap = new LinkedHashMap<String, String>();
 
             var parentElements = doc.select("div");
@@ -201,8 +197,7 @@ public class RealiticaContentLoader implements IContentLoader {
             return attributesMap;
         } catch (Exception e) {
             log.error("Can't load ad {}", id, e);
-            Thread.sleep(1000);
-            return loadAdAttributes(id, repeats - 1);
+            return null;
         }
     }
 
@@ -220,7 +215,7 @@ public class RealiticaContentLoader implements IContentLoader {
             }
 
             var adEntity = adRepository.findBySourceIdAndSourceCode(id, "realitica");
-            var attributesMap = loadAdAttributes(id, 1);
+            var attributesMap = loadAdAttributes(id);
             if (attributesMap == null || attributesMap.isEmpty()) {
                 log.error("Attributes is empty for {}. Stun will be skipped, not founded in DB", id);
                 return null;
@@ -240,7 +235,7 @@ public class RealiticaContentLoader implements IContentLoader {
             };
 
 
-            if(lastModified != null && lastModified.isBefore(LocalDateTime.now().minusMonths(18).toLocalDate())){
+            if (lastModified != null && lastModified.isBefore(LocalDateTime.now().minusMonths(18).toLocalDate())) {
                 log.info("Stun {} is deprecated", id);
                 return null;
             }
@@ -284,5 +279,49 @@ public class RealiticaContentLoader implements IContentLoader {
             case "Garage Long Term Rental" -> GARAGE_LONG_TERM_RENTAL;
             default -> OTHER;
         };
+    }
+
+
+    private long lastRequestTime = 0;
+
+    @SneakyThrows
+    private synchronized Document jsonpGetWrapper(String url, int attempts) {
+        if (attempts <= 0) {
+            log.error("Exceeded max attempts to load page {}", url);
+            return null;
+        }
+
+        // RATE LIMIT
+        long RATE_LIMIT_MS = 250;
+        long now = System.currentTimeMillis();
+        long wait = lastRequestTime + RATE_LIMIT_MS - now;
+        if (wait > 0) {
+            Thread.sleep(wait);
+        }
+        lastRequestTime = System.currentTimeMillis();
+
+        try {
+            var result = Jsoup.connect(url).get();
+
+            // JS challenge (AWS WAF)
+            if (result.text().contains("JavaScript is disabled")) {
+                log.warn("JavaScript is disabled for {}, sleep 180 sec (attempts left: {})", url, attempts - 1);
+                Thread.sleep(180_000);
+                return jsonpGetWrapper(url, attempts - 1);
+            }
+
+            // Empty <body></body>
+            if (result.body().childrenSize() == 0) {
+                log.warn("Empty page for {}, sleep 180 sec (attempts left: {})", url, attempts - 1);
+                Thread.sleep(180_000);
+                return jsonpGetWrapper(url, attempts - 1);
+            }
+
+            return result;
+        } catch (IOException e) {
+            log.warn("Can't load page {}, attempts left {}", url, attempts - 1, e);
+            Thread.sleep(1000);
+            return jsonpGetWrapper(url, attempts - 1);
+        }
     }
 }
