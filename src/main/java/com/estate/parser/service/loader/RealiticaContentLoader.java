@@ -38,6 +38,7 @@ public class RealiticaContentLoader implements IContentLoader {
         return searches.stream()
                 .map(this::loadIdsBySearch)
                 .flatMap(Collection::stream)
+                .distinct()
                 .map(id -> loadAdAndSave(id, 1))
                 .filter(Objects::nonNull)
                 .map(AdEntity::getSourceId)
