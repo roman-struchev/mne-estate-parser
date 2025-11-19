@@ -104,8 +104,9 @@ public class EstitorContentLoader implements IContentLoader {
                     .parent().parent().select("span").last().text();
             attributesMap.put("Published", value);
             //"Updated:" -> "25.11.2024"
-            value = Objects.requireNonNull(doc.select("span:matchesOwn(^Updated$)").first())
-                    .parent().parent().select("span").last().text();
+            value = Optional.ofNullable(doc.select("span:matchesOwn(^Updated$)").first())
+                    .map(e -> e.parent().parent().select("span").last().text())
+                    .orElse(null);
             attributesMap.put("Updated", value);
             //"Neighborhood:" -> "Zabjelo"
             value = doc.select("h3:contains(Location)").first()
@@ -162,7 +163,8 @@ public class EstitorContentLoader implements IContentLoader {
                 return null;
             }
 
-            var lastModifiedStr = attributesMap.get("Updated");
+            var lastModifiedStr = Optional.ofNullable(attributesMap.get("Updated"))
+                    .orElse(attributesMap.get("Published"));
             var lastModified = switch (lastModifiedStr) {
                 case null -> null;
                 default -> {
