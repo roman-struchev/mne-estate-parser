@@ -8,14 +8,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.StreamSupport;
 
 import static com.estate.parser.entity.AdEntity.Type.*;
 
@@ -102,40 +106,40 @@ public class EstitorContentLoader implements IContentLoader {
                 return null;
             }
             var attributesMap = new LinkedHashMap<String, String>();
-            //"Published:" -> "23.02.2021"
-            value = Objects.requireNonNull(doc.select("span:matchesOwn(^Published$)").first())
-                    .parent().parent().select("span").last().text();
-            attributesMap.put("Published", value);
-            //"Updated:" -> "25.11.2024"
-            value = Optional.ofNullable(doc.select("span:matchesOwn(^Updated$)").first())
-                    .map(e -> e.parent().parent().select("span").last().text())
-                    .orElse(null);
-            attributesMap.put("Updated", value);
-            //"Neighborhood:" -> "Zabjelo"
-            value = doc.select("h3:contains(Location)").first()
-                    .parent().select("p.text-base.font-semibold").first().text();
-            attributesMap.put("Neighborhood", value);
-            //"Price:" -> "180,000€"
-            value = doc.select("h3:contains(Price)").first()
-                    .parent().selectFirst("p.font-bold").text().replaceAll("\\s+", "");
-            attributesMap.put("Price", value);
-            //"Area:" -> "87m²"
-            value = doc.select("span:matchesOwn(^Area$)").first()
-                    .parent().parent().selectFirst("p.font-semibold").text();
-            attributesMap.put("Area", value);
-            //"Rooms" -> "3"
-            value = doc.select("span:matchesOwn(^Rooms$)").first()
-                    .parent().parent().selectFirst("p.font-semibold").text();
-            attributesMap.put("Rooms", value);
-            //"City:" -> "Podgorica"
-            value = doc.select("h3:matchesOwn(^Location$)").first()
-                    .parent().select("p.text-sm").first().text().replaceAll(".*,\\s*", "");
-            attributesMap.put("City", value);
+            var mapper = new ObjectMapper();
+            String jsonLd = doc.select("script[type=application/ld+json]")
+                    .stream()
+                    .map(Element::html)
+                    .filter(text -> text.contains("\"RealEstateListing\""))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("RealEstateListing JSON-LD not found"));
 
-            var h1Text = doc.select("h1").first().text();
-            var parts = h1Text.split(",");
+            JsonNode root = mapper.readTree(jsonLd);
+            JsonNode listing = StreamSupport.stream(root.path("@graph").spliterator(), false)
+                    .filter(node -> "RealEstateListing".equals(node.path("@type").asText()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("RealEstateListing node not found"));
 
-            attributesMap.put("Type", parts[0].trim() + " " + parts[1].trim());
+            JsonNode offer = listing.path("offers");
+            JsonNode item = offer.path("itemOffered");
+
+
+            attributesMap.put("Published", listing.path("datePosted").asText(null));
+            attributesMap.put("Updated", listing.path("dateModified").asText(null));
+
+            attributesMap.put("Price", offer.path("price").asText(null));
+
+            attributesMap.put("Area", item.path("floorSize").path("value").asText(null) + "m²");
+
+            attributesMap.put("Rooms", item.path("numberOfRooms").asText(null));
+
+            JsonNode address = item.path("address");
+            attributesMap.put("City", address.path("addressLocality").asText(null));
+
+            attributesMap.put("Neighborhood", extractNeighborhoodFromName(listing.path("name").asText(null)));
+
+            attributesMap.put("Type", extractTypeFromName(listing.path("name").asText(null)));
+
             return attributesMap;
         } catch (Exception e) {
             log.error("Can't load ad {}", url, e);
@@ -166,7 +170,7 @@ public class EstitorContentLoader implements IContentLoader {
                 case null -> null;
                 default -> {
                     try {
-                        yield LocalDate.parse(lastModifiedStr, DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.ENGLISH));
+                        yield LocalDate.parse(lastModifiedStr, DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ENGLISH));
                     } catch (Exception e) {
                         log.error("Can't parse data {}, {}", id, attributesMap.get("Updated"), e);
                         yield null;
@@ -266,5 +270,35 @@ public class EstitorContentLoader implements IContentLoader {
             Thread.sleep(3_000);
             return jsoupGet(url, attempts - 1);
         }
+    }
+
+    private String extractTypeFromName(String name) {
+        if (name == null) {
+            return null;
+        }
+
+        // "Rent, office space, 115m², Blok 9, Podgorica"
+        var parts = name.split(",");
+
+        if (parts.length < 2) {
+            return name;
+        }
+
+        return parts[0].trim() + " " + parts[1].trim();
+    }
+
+    private String extractNeighborhoodFromName(String name) {
+        if (name == null) {
+            return null;
+        }
+
+        // "Rent, office space, 115m², Blok 9, Podgorica"
+        var parts = name.split(",");
+
+        if (parts.length < 4) {
+            return null;
+        }
+
+        return parts[3].trim();
     }
 }
