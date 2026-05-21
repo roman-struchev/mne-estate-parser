@@ -14,5 +14,7 @@ public interface AdRepository extends JpaRepository<AdEntity, Long> {
 
     List<AdEntity> findAllByTypeIn(List<AdEntity.Type> types, Sort sort);
 
+    List<AdEntity> findAllByTypeInAndLastModifiedGreaterThanEqual(List<AdEntity.Type> types, LocalDateTime lastModifiedFrom, Sort sort);
+
     List<AdEntity> findAllByLastModifiedGreaterThanEqual(LocalDateTime lastModifiedFrom, Sort sort);
 }

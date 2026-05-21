@@ -11,6 +11,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Objects;
 
@@ -24,10 +25,15 @@ public class AdController {
     @Value("${spring.datasource.password}")
     private String parsePassword;
 
+    @Value("${app.ads.maxAgeMonths:6}")
+    private int maxAgeMonths;
+
     @GetMapping(path = {"/"})
     public ModelAndView load(@RequestParam(name = "type", defaultValue = "Rental") String type) {
         var types = AdEntity.Type.allBy(type);
-        var ads = adRepository.findAllByTypeIn(types, Sort.by(Sort.Direction.DESC, "lastModified"));
+        var since = LocalDate.now().minusMonths(maxAgeMonths).atStartOfDay();
+        var sort = Sort.by(Sort.Direction.DESC, "lastModified");
+        var ads = adRepository.findAllByTypeInAndLastModifiedGreaterThanEqual(types, since, sort);
         return new ModelAndView("ads", Map.of("ads", ads));
     }
 

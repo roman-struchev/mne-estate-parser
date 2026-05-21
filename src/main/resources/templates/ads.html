@@ -92,13 +92,15 @@
             vals.map(p => ({ label: '≤ ' + p, value: r => !r[col] || parseFloat(r[col]) <= p }))
                 .concat(vals.map(p => ({ label: '≥ ' + p, value: r => !r[col] || parseFloat(r[col]) >= p })));
 
-        $('#table_id').DataTable({
+        const table = $('#table_id').DataTable({
             paging: true,
             pageLength: 50,
             lengthMenu: [50, 100, 500, 1000],
             order: [[6, 'desc']],
             deferRender: true,
             orderClasses: false,
+            processing: true,
+            searchDelay: 400,
             searchPanes: {
                 cascadePanes: true,
                 viewTotal: false,
@@ -106,8 +108,8 @@
                 collapse: false,
                 columns: [0, 1, 2, 3],
                 panes: [
-                    { header: 'Living area', options: rangeOpts(4, [40, 60, 80, 100, 120, 140]) },
-                    { header: 'Price', options: rangeOpts(5, [200, 300, 400, 500, 600, 700, 800, 1000, 1200, 1500].map(p => p * mult)) }
+                    { header: 'Living area', options: rangeOpts(4, [60, 80, 100, 120, 140]) },
+                    { header: 'Price', options: rangeOpts(5, [600, 700, 800, 1000, 1200, 1500].map(p => p * mult)) }
                 ]
             },
             dom: "<'row mb-2'<'col-12'P>>" +
