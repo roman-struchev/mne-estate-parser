@@ -90,7 +90,6 @@ jobs:
             export SMTP_LOGIN=${{ secrets.SMTP_LOGIN }}
             export SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}"
             export PORT="11003"
-            export REALITICA_CITIES="Podgorica,Danilovgrad"
             docker compose down
             docker compose pull
             docker compose up -d

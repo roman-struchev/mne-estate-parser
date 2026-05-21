@@ -91,9 +91,12 @@ public class RealiticaContentLoader implements IContentLoader {
             }
 
             var linkToChild = element.child(0).attr("href");
-            if (element.child(0).childNodeSize() > 1 || current.equals("Budva")) {
+            if (element.child(0).childNodeSize() > 1) {
                 Map<String, Object> searchesInternal = loadSearchesByCitiesAndAreas(linkToChild, city == null ? current : city);
                 searches.put(current, searchesInternal);
+            } else if (city == null) {
+                searches.put(current + "-Rental", "https://www.realitica.com/index.php?for=DuziNajam&lng=en&opa=" + current);
+                searches.put(current + "-Sale", "https://www.realitica.com/index.php?for=Prodaja&lng=en&opa=" + current);
             } else {
                 searches.put(current + "-Rental", "https://www.realitica.com/index.php?for=DuziNajam&lng=en&opa=" + city + "&cty=" + current);
                 searches.put(current + "-Sale", "https://www.realitica.com/index.php?for=Prodaja&lng=en&opa=" + city + "&cty=" + current);
