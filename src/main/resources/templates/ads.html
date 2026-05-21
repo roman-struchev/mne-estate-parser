@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/searchpanes/2.2.0/css/searchPanes.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/select/1.7.0/css/select.bootstrap5.min.css">
+    <style>a:visited { color: var(--bs-secondary); }</style>
 
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-M0P2NJBFKY"></script>
     <script>
@@ -34,7 +35,7 @@
 </nav>
 
 <main class="container-fluid py-2 px-2">
-    <table id="table_id" class="table table-sm table-hover align-middle w-100" style="display:none">
+    <table id="table_id" class="table table-sm table-hover align-middle text-nowrap w-100" style="display:none">
         <thead class="table-light">
         <tr>
             <th>City</th>
@@ -44,7 +45,6 @@
             <th>Size</th>
             <th>Price</th>
             <th>Last modified</th>
-            <th>Source</th>
             <th>Link</th>
         </tr>
         </thead>
@@ -57,8 +57,7 @@
             <td th:text="${s.size}"/>
             <td th:text="${s.price}"/>
             <td th:text="${#strings.replace(s.lastModified, 'T00:00', '')}"/>
-            <td th:text="${s.sourceCode}"/>
-            <td><a th:href="${s.sourceLink}" th:text="${s.sourceId}" target="_blank" rel="noopener"></a></td>
+            <td><a th:href="${s.sourceLink}" th:text="${s.sourceCode}" target="_blank"></a></td>
         </tr>
         </tbody>
     </table>
@@ -101,7 +100,7 @@
             deferRender: true,
             orderClasses: false,
             searchPanes: {
-                cascadePanes: false,
+                cascadePanes: true,
                 viewTotal: false,
                 clear: false,
                 collapse: false,
